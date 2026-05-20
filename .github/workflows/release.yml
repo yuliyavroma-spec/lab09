@@ -1,100 +1,41 @@
-name: Build and Release Packages
+name: Create Release
 
 on:
   push:
     tags:
-      - 'v*'
-  workflow_dispatch:
+      - 'v*'  
+
+permissions:
+  contents: write  
 
 jobs:
-  build-linux:
+  release:
+    name: Create GitHub Release
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y rpm
-      
-      - name: Configure
-        run: cmake -H. -B build -DCMAKE_BUILD_TYPE=Release
-    - name: Build
-        run: cmake --build build
-      
-      - name: Create DEB package
-        run: |
-          cd build
-          cmake -G "DEB" -DCPACK_GENERATOR="DEB" ..
-          cmake --build . --target package
-          cd ..
-      
-      - name: Create RPM package
-        run: |
-          cd build
-          cmake -G "RPM" -DCPACK_GENERATOR="RPM" ..
-          cmake --build . --target package
-          cd ..
-      
-      - name: Create TGZ package
-        run: |
-          cd build
-          cmake -G "TGZ" -DCPACK_GENERATOR="TGZ" ..
-          cmake --build . --target package
-          cd ..
-    - name: Upload to Release
-        uses: softprops/action-gh-release@v1
+ steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
+          fetch-depth: 0  
+      
+      - name: Build project
+        run: |
+          
+          mkdir -p build
+          cd build
+          cmake ..
+          make
+          make package
+          ls -la *.tar.gz
+    - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Release ${{ github.ref_name }}"
+          body: |
+            
           files: |
-            build/*.deb
-            build/*.rpm
             build/*.tar.gz
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  build-macos:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Configure
-        run: cmake -H. -B build -DCMAKE_BUILD_TYPE=Release
-      
-      - name: Build
-        run: cmake --build build
- - name: Create DMG package
-        run: |
-          cd build
-          cmake -G "DragNDrop" -DCPACK_GENERATOR="DragNDrop" ..
-          cmake --build . --target package
-          cd ..
-      
-      - name: Upload to Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: build/*.dmg
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  build-windows:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Configure
-        run: cmake -H. -B build -DCMAKE_BUILD_TYPE=Release
-      
-      - name: Build
-        run: cmake --build build --config Release
-      
-      - name: Create WIX package
-        run: |
-          cd build
-          cmake -G "WIX" -DCPACK_GENERATOR="WIX" ..
-          cmake --build . --target package --config Release
-          cd ..
-      - name: Upload to Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: build/*.msi
+          draft: false
+          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
